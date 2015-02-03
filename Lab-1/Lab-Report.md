@@ -4,7 +4,7 @@
 
 In this lab, the hardware components of the controller were assembled. The controller was built with a wooden body, a breadboard mounted Arduino Micro, 8 face buttons, 2 analog sticks, 1 switch, and 4 shoulder buttons.
 
-##Design methodology
+##Design
 
 The controller was designed primarily with action games in mind, while still allowing for FPS and fighting style games.
 
@@ -18,7 +18,24 @@ However, a second pair of shoulder buttons were added to be analagous to L2 and 
 
 The shoulder buttons were also implemented with smaller buttons than those used for the face buttons. This allowed two sets of buttons to fit on the shoulders. Furthermore, the small size is less noticeable because the trigger fingers constantly rest on the buttons, unlike the thumbs, which must traverse between various face buttons and joysticks and must locate the desired button by touch during swift movements.
 
-Finally, a control switch was placed on the breadboard as the available switches had pins on the bottom of the switch, making it awkward to mount directly on the controller. Since the switch would most certainly be used to trigger modes and be expected to maintain its state during normal gameplay, the placement on the breadboard also makes it difficult to accidentally trigger the switch during normal gameplay.
+A control switch was placed on the breadboard as the available switches had pins on the bottom of the switch, making it awkward to mount directly on the controller. Since the switch would most certainly be used to trigger modes and be expected to maintain its state during normal gameplay, the placement on the breadboard also makes it difficult to accidentally trigger the switch during normal gameplay.
 
 Although the controller does not have dedicated Start/Select buttons, the joystick buttons were found to be sufficiently difficult to trigger and inconvenient to use that they can likely serve the role of Start/Select buttons.
 
+Finally, the wooded body was sanded where it obstructed placement of fingers.
+
+The wiring was performed with the aim of minimizing the amount of wire used so the wires would hug the controller body, so they were unlikely to catch on surrounding objects and pull out attached components.
+
+## Testing
+
+The design was tested primarily through marking the planned locations of components or taping them down, and then holding the controller to gain a feel for how easy it was to press the desired buttons.
+
+In particular, for each hand, it was tested if it was possible to access the face buttons, joystick, and shoulder buttons without readjusting the grip.
+
+It was also tested whether it was easy and intuitive to press buttons without looking at the controller, and be able to press the desired buttons quickly without missing or hitting another button.
+
+If the grip was uncomfortable due to the body being too bulky, the body was subsequently sanded until it no longer obstructed proper gripping.
+
+The wiring was tested with a multimeter to ensure the soldering formed a closed connection, and that there were no short circuits where the wire insulation may have melted or softened from the soldering.
+
+##

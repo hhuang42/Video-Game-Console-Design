@@ -26,6 +26,8 @@ Finally, the wooded body was sanded where it obstructed placement of fingers.
 
 The wiring was performed with the aim of minimizing the amount of wire used so the wires would hug the controller body, so they were unlikely to catch on surrounding objects and pull out attached components.
 
+All buttons were wired to ground and an input pin, such that the input pin can be pulled high in software to detect a connection to ground when the button is pressed.
+
 ## Testing
 
 The design was tested primarily through marking the planned locations of components or taping them down, and then holding the controller to gain a feel for how easy it was to press the desired buttons.
@@ -38,4 +40,14 @@ If the grip was uncomfortable due to the body being too bulky, the body was subs
 
 The wiring was tested with a multimeter to ensure the soldering formed a closed connection, and that there were no short circuits where the wire insulation may have melted or softened from the soldering.
 
-##
+## Results and Discussion
+
+The component placement and electrical wiring turned out as expected. All the components were relatively easy to reach, and the wiring is nonobstructive.
+
+However, the sanding is still a little lacking and the controller is still fairly unwieldy, so it's possible that the controller may be sanded down to be more comfortable at a later time.
+
+## Conclusion
+
+In this lab, the hardware layout of a USB controller was designed and constructed.
+
+10 hours were spent on this lab.

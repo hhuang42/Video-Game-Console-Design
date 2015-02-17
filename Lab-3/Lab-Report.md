@@ -75,4 +75,6 @@ chasing the flag and using shotguns for short range damage.
 In this lab, informal tests were run across controller configurations that suggest that slower joystick speeds can increase
 accuracy but can make short range weapons harder to use, as well as reducing mobility overall.
 
+Data on bot accuracy was also recorded, but there was not sufficient time to perform analysis with those data values.
+
 8 hours were spent on this lab.

@@ -42,4 +42,4 @@ The game worked as expected as well, behaving as expected from a pong game.
 
 In this lab, motion controls were used to control the actions of two paddles in a game of Pong.
 
-2 hours were spent on this lab.
+6 hours were spent on this lab.

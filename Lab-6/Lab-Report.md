@@ -16,6 +16,8 @@ Markers were still used given the success and reliability from Lab 5. In additio
 
 The game logic was chosen to run at the relatively poor framerate of the processing in order to allow players a chance to react given that their own actions had high latency.
 
+Finally, the game display was placed directly on top of the motion detection output in order to demonstrate the connection between the visual location of the marker and the location of the paddle.
+
 ## Testing
 
 The motion detection design was tested primarily through displaying both markers in front of the web cam and making sure that each respective paddle moved to the corresponding height of the marker tip.

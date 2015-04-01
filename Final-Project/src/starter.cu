@@ -6,9 +6,9 @@
  
 #include <stdio.h>
  
-const int N = 16; 
-const int block_width = 4;
-const int block_height = 4;
+const int block_size = 16; 
+const int block_width = 16;
+const int block_height = 1;
  
  
 typedef struct bullet_t{
@@ -17,7 +17,19 @@ typedef struct bullet_t{
     double x_v;
     double y_v;
 } basic_bullet;
+
+typedef struct position_t{
+    double x;
+    double y;
+} position;
  
+__device__ void initialize_bullet(basic_bullet* bullet,
+    double x, double y, double x_v, double y_v){
+    bullet->x = x;
+    bullet->y = y;
+    bullet->x_v = x_v;
+    bullet->y_v = y_v;
+}
 
 __global__ void initialize_bullets(basic_bullet* bullets,
                                    size_t bullet_count,
@@ -31,12 +43,9 @@ __global__ void initialize_bullets(basic_bullet* bullets,
     }
 }
 
-__device__ void initialize_bullet(basic_bullet* bullet,
-    double x, double y, double x_v, double y_v){
-    bullet->x = x;
-    bullet->y = y;
-    bullet->x_v = x_v;
-    bullet->y_v = y_v;
+__device__ void update_bullet(basic_bullet* bullet){
+    bullet->x += bullet->x_v;
+    bullet->y += bullet->y_v;
 }
 
 __global__ void update_bullets(basic_bullet* bullets,
@@ -50,37 +59,69 @@ __global__ void update_bullets(basic_bullet* bullets,
     }
 }
 
-__device__ void update_bullet(basic_bullet* bullet){
-    bullet->x += bullet->x_v;
-    bullet->y += bullet->y_v;
+__device__ void transfer_bullet_position(basic_bullet* bullet,
+                                         position* output){
+    output->x = bullet->x;
+    output->y = bullet->y;
 }
+
+__global__ void transfer_bullets_position(basic_bullet* bullets,
+                                          position* output,
+                                          size_t bullet_count,
+                                          size_t total_threads){
+    int bullet_index = threadIdx.x;
+    while(bullet_index < bullet_count){
+        transfer_bullet_position(bullets + bullet_index
+                                 output + bullet_index);
+        bullet_index += total_threads;
+    }    
+}
+
+
  
 int main()
 {
-	char a[N] = "Hello \0\0\0\0\0\0";
-	int b[N] = {15, 10, 6, 0, -11, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
  
- char *ad;
- int *bd;
- const int csize = N*sizeof(char);
- const int isize = N*sizeof(int);
+    basic_bullet* bullets_d;
+    position* positions_d;
+    position* positions_h;
+    
+     
+    const int bullets_count = 1000;
+    const int bullets_size = bullets_count*sizeof(basic_bullet);
+    const int positions_size = bullets_count*sizeof(position);
+    
+    dim3 dimBlock( block_width, block_height );
+    dim3 dimGrid( 1, 1 );
  
- printf("%s", a);
- 
- cudaMalloc( (void**)&ad, csize ); 
- cudaMalloc( (void**)&bd, isize ); 
- cudaMemcpyAsync( ad, a, csize, cudaMemcpyHostToDevice ); 
- cudaMemcpyAsync( bd, b, isize, cudaMemcpyHostToDevice ); 
- 
- dim3 dimBlock( blocksize, 1 );
- dim3 dimGrid( 1, 1 );
- hello<<<dimGrid, dimBlock>>>(ad, bd);
- cudaMemcpyAsync( a, ad, csize, cudaMemcpyDeviceToHost ); 
- cudaFree( ad );
- cudaFree( bd );
- 
- printf("%s\n", a);
- return EXIT_SUCCESS;
+// printf("%s", a);
+// 
+    cudaMalloc( (void**)&bullets_d, bullets_size );
+    cudaMalloc( (void**)&bullets_d, bullets_size );
+    positions_h malloc()
+    initialize_bullets<<<dimGrid, dimBlock>>>(
+                                   bullets_d,
+                                   bullets_count,
+                                   block_size);
+    initialize_bullets<<<dimGrid, dimBlock>>>(
+                                   bullets_d,
+                                   bullets_count,
+                                   block_size);
+    cudaFree(bullets_d);
+    
+// cudaMalloc( (void**)&bd, isize ); 
+// cudaMemcpyAsync( ad, a, csize, cudaMemcpyHostToDevice ); 
+// cudaMemcpyAsync( bd, b, isize, cudaMemcpyHostToDevice ); 
+// 
+// dim3 dimBlock( blocksize, 1 );
+// dim3 dimGrid( 1, 1 );
+// hello<<<dimGrid, dimBlock>>>(ad, bd);
+// cudaMemcpyAsync( a, ad, csize, cudaMemcpyDeviceToHost ); 
+// cudaFree( ad );
+// cudaFree( bd );
+// 
+// printf("%s\n", a);
+// return EXIT_SUCCESS;
 }
 
 

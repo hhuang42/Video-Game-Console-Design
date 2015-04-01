@@ -6,8 +6,8 @@
  
 #include <stdio.h>
  
-const int block_size = 16; 
-const int block_width = 16;
+const int block_size = 64; 
+const int block_width = 64;
 const int block_height = 1;
  
  
@@ -37,24 +37,24 @@ __global__ void initialize_bullets(basic_bullet* bullets,
     int bullet_index = threadIdx.x;
     while(bullet_index < bullet_count){
         initialize_bullet(bullets + bullet_index,
-        threadIdx.x, threadIdx.y,
-        .01, -.01);
+        bullet_index + .01*threadIdx.x, bullet_index+.01*threadIdx.y,
+        .0001, -.0001);
         bullet_index += total_threads;
     }
 }
 
-__device__ void update_bullet(basic_bullet* bullet){
+__device__ void move_bullet(basic_bullet* bullet){
     bullet->x += bullet->x_v;
     bullet->y += bullet->y_v;
 }
 
-__global__ void update_bullets(basic_bullet* bullets,
+__global__ void move_bullets(basic_bullet* bullets,
                                size_t bullet_count,
                                size_t total_threads)
 {
     int bullet_index = threadIdx.x;
     while(bullet_index < bullet_count){
-        update_bullet(bullets + bullet_index);
+        move_bullet(bullets + bullet_index);
         bullet_index += total_threads;
     }
 }
@@ -71,7 +71,7 @@ __global__ void transfer_bullets_position(basic_bullet* bullets,
                                           size_t total_threads){
     int bullet_index = threadIdx.x;
     while(bullet_index < bullet_count){
-        transfer_bullet_position(bullets + bullet_index
+        transfer_bullet_position(bullets + bullet_index,
                                  output + bullet_index);
         bullet_index += total_threads;
     }    
@@ -86,8 +86,9 @@ int main()
     position* positions_d;
     position* positions_h;
     
+    
      
-    const int bullets_count = 1000;
+    const int bullets_count = 100000;
     const int bullets_size = bullets_count*sizeof(basic_bullet);
     const int positions_size = bullets_count*sizeof(position);
     
@@ -97,17 +98,112 @@ int main()
 // printf("%s", a);
 // 
     cudaMalloc( (void**)&bullets_d, bullets_size );
-    cudaMalloc( (void**)&bullets_d, bullets_size );
-    positions_h malloc()
-    initialize_bullets<<<dimGrid, dimBlock>>>(
+    cudaMalloc( (void**)&positions_d, positions_size);
+    cudaMallocHost( (void**)&positions_h, positions_size);
+    positions_h = (position*) malloc(positions_size);
+    
+    
+                                   
+    int bullet_index = 90000;
+    
+    cudaStream_t stream1, stream2, stream3, stream4;
+    cudaStreamCreate(&stream1);
+    cudaStreamCreate(&stream2);
+    cudaStreamCreate(&stream3);
+    cudaStreamCreate(&stream4);
+    
+    initialize_bullets<<<dimGrid, dimBlock, 0, stream4>>>(
                                    bullets_d,
                                    bullets_count,
                                    block_size);
-    initialize_bullets<<<dimGrid, dimBlock>>>(
-                                   bullets_d,
-                                   bullets_count,
-                                   block_size);
+                                   
+    cudaStreamSynchronize(stream4);
+        
+    for(int i = 0; i < 60; ++i){
+        
+        
+        
+        transfer_bullets_position<<<dimGrid, dimBlock, 0, stream2>>>(
+                                       bullets_d,
+                                       positions_d,
+                                       bullets_count,
+                                       block_size);
+                                       
+        cudaDeviceSynchronize();
+        
+        move_bullets<<<dimGrid, dimBlock, 0, stream1>>>(
+                                       bullets_d,
+                                       bullets_count,
+                                       block_size);
+        
+        cudaMemcpyAsync( positions_h, positions_d, 
+                     positions_size, cudaMemcpyDeviceToHost, stream3 );
+                     
+        cudaStreamSynchronize(stream3);
+                     
+        printf("Bullet #%d x: %f y: %f \n", 
+           bullet_index, 
+           positions_h[bullet_index].x,
+           positions_h[bullet_index].y);
+           
+        
+    }
+                                   
+    /*
+Bullet #900 x: 900.040100 y: 899.999900 
+Bullet #900 x: 900.040200 y: 899.999800 
+Bullet #900 x: 900.040300 y: 899.999700 
+Bullet #900 x: 900.040400 y: 899.999600 
+Bullet #900 x: 900.040500 y: 899.999500 
+Bullet #900 x: 900.040600 y: 899.999400 
+Bullet #900 x: 900.040600 y: 899.999400 
+Bullet #900 x: 900.040800 y: 899.999200 
+Bullet #900 x: 900.040900 y: 899.999100 
+Bullet #900 x: 900.041000 y: 899.999000 
+Bullet #900 x: 900.041000 y: 899.999000 
+Bullet #900 x: 900.041200 y: 899.998800 
+Bullet #900 x: 900.041300 y: 899.998700 
+Bullet #900 x: 900.041300 y: 899.998700 
+Bullet #900 x: 900.041500 y: 899.998500 
+Bullet #900 x: 900.041600 y: 899.998400 
+Bullet #900 x: 900.041700 y: 899.998300 
+Bullet #900 x: 900.041800 y: 899.998200 
+Bullet #900 x: 900.041900 y: 899.998100 
+Bullet #900 x: 900.042000 y: 899.998000 
+
+    */
+    
+        /* 
+Bullet #900 x: 900.040100 y: 899.999900 
+Bullet #900 x: 900.040200 y: 899.999800 
+Bullet #900 x: 900.040300 y: 899.999700 
+Bullet #900 x: 900.040400 y: 899.999600 
+Bullet #900 x: 900.040500 y: 899.999500 
+Bullet #900 x: 900.040600 y: 899.999400 
+Bullet #900 x: 900.040700 y: 899.999300 
+Bullet #900 x: 900.040800 y: 899.999200 
+Bullet #900 x: 900.040900 y: 899.999100 
+Bullet #900 x: 900.041000 y: 899.999000 
+Bullet #900 x: 900.041100 y: 899.998900 
+Bullet #900 x: 900.041200 y: 899.998800 
+Bullet #900 x: 900.041300 y: 899.998700 
+Bullet #900 x: 900.041400 y: 899.998600 
+Bullet #900 x: 900.041500 y: 899.998500 
+Bullet #900 x: 900.041600 y: 899.998400 
+Bullet #900 x: 900.041700 y: 899.998300 
+Bullet #900 x: 900.041800 y: 899.998200 
+Bullet #900 x: 900.041900 y: 899.998100 
+Bullet #900 x: 900.042000 y: 899.998000 
+
+
+    */
+    
+    
+    
+                     
     cudaFree(bullets_d);
+    cudaFree(positions_d);
+    cudaFreeHost(positions_h);
     
 // cudaMalloc( (void**)&bd, isize ); 
 // cudaMemcpyAsync( ad, a, csize, cudaMemcpyHostToDevice ); 

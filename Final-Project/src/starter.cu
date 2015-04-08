@@ -2,16 +2,17 @@
 // It takes the string "Hello ", prints it, then passes it to CUDA with an array
 // of offsets. Then the offsets are added in parallel to produce the string "World!"
 // By Ingemar Ragnemalm 2010
-// http://computer-graphics.se/hello-world-for-cuda.html
+// ://computer-graphics.se/hello-world-for-cuda.html
  
 #include <stdio.h>
+#include <math.h>
  
 const int block_size = 64; 
 const int block_width = 64;
 const int block_height = 1;
 
-typedef enum {FORM, ACTIVE, FADE, DEAD} status;
-typedef 
+typedef enum {FORM, ACTIVE, FADE, DEAD} bullet_status;
+typedef enum {BASIC} bullet_type;
 
  
 typedef struct point_t{
@@ -20,66 +21,94 @@ typedef struct point_t{
 } point;
  
 typedef struct bullet_t{
-    point position;
-    point velocity;
-    point acceleration;
-    size_t bullet_type;
+    point pos;
+    point vel;
+    point acc;
+    bullet_status status;
+    bullet_type type;
     int age;
+    double theta;
     double w;
-    
-    
-    
-} basic_bullet;
- 
-__device__ void initialize_bullet(basic_bullet* bullet,
-    double x, double y, double x_v, double y_v){
-    bullet->x = x;
-    bullet->y = y;
-    bullet->x_v = x_v;
-    bullet->y_v = y_v;
+} bullet;
+
+typedef struct draw_info_t{
+    point pos;
+    double theta;
+    bullet_status status;
+    bullet_type type;
+} draw_info;
+
+__device__ __host__ point xy_to_rt(point* xy_point){
+    double r = hypot(xy_point->x, xy_point->y);
+    double t = ((xy_point->x != 0) || (xy_point->y != 0)) ?
+               atan2(xy_point -> y, xy_point -> x):
+               0;
+    point return_value = {r, t};
+    return return_value;
 }
 
-__global__ void initialize_bullets(basic_bullet* bullets,
-                                   size_t bullet_count,
-                                   size_t total_threads){
-    int bullet_index = threadIdx.x;
-    while(bullet_index < bullet_count){
-        initialize_bullet(bullets + bullet_index,
-        bullet_index + .01*threadIdx.x, bullet_index+.01*threadIdx.y,
-        .0001, -.0001);
-        bullet_index += total_threads;
-    }
+__device__ __host__ point rt_to_xy(point* rt_point){
+    double r = rt_point->x;
+    double t = rt_point->y;
+    point return_value = {r*cos(t), r*sin(t)};
+    return return_value;
 }
 
-__device__ void move_bullet(basic_bullet* bullet){
-    bullet->x += bullet->x_v;
-    bullet->y += bullet->y_v;
-}
-
-__global__ void move_bullets(basic_bullet* bullets,
+__global__ void initialize_all_bullet(bullet* bullets,
                                size_t bullet_count,
                                size_t total_threads)
 {
     int bullet_index = threadIdx.x;
     while(bullet_index < bullet_count){
-        move_bullet(bullets + bullet_index);
+        point rt_vector = {bullet_index, bullet_index};
+        bullets[bullet_index].pos = rt_to_xy(&rt_vector);
+        rt_vector = (point){bullet_index*.01, bullet_index};
+        bullets[bullet_index].vel = rt_to_xy(&rt_vector);
+        rt_vector = (point){bullet_index*-.0001, bullet_index};
+        bullets[bullet_index].acc = rt_to_xy(&rt_vector);
+        bullets[bullet_index].theta = rt_vector.y;
+        bullets[bullet_index].w = -.001;
+        
         bullet_index += total_threads;
     }
 }
 
-__device__ void transfer_bullet_position(basic_bullet* bullet,
-                                         position* output){
-    output->x = bullet->x;
-    output->y = bullet->y;
+__device__ void update_bullet(bullet* bullet){
+    bullet->pos.x += bullet->vel.x;
+    bullet->pos.y += bullet->vel.y;
+    bullet->vel.x += bullet->acc.x;
+    bullet->vel.y += bullet->acc.y;
+    bullet->theta += bullet->w;
+    bullet->age += 1; 
+    bullet->theta++;
 }
 
-__global__ void transfer_bullets_position(basic_bullet* bullets,
-                                          position* output,
+__global__ void update_all_bullet(bullet* bullets,
+                               size_t bullet_count,
+                               size_t total_threads)
+{
+    int bullet_index = threadIdx.x;
+    while(bullet_index < bullet_count){
+        update_bullet(bullets + bullet_index);
+        bullet_index += total_threads;
+    }
+}
+
+__device__ void extract_bullet_draw_info(bullet* bullet,
+                                         draw_info* output){
+    output->pos = bullet->pos;
+    output->theta = bullet->theta;
+    output->status = bullet->status;
+    output->type = bullet->type;
+}
+
+__global__ void extract_all_bullet_draw_info(bullet* bullets,
+                                          draw_info* output,
                                           size_t bullet_count,
                                           size_t total_threads){
     int bullet_index = threadIdx.x;
     while(bullet_index < bullet_count){
-        transfer_bullet_position(bullets + bullet_index,
+        extract_bullet_draw_info(bullets + bullet_index,
                                  output + bullet_index);
         bullet_index += total_threads;
     }    
@@ -90,15 +119,15 @@ __global__ void transfer_bullets_position(basic_bullet* bullets,
 int main()
 {
  
-    basic_bullet* bullets_d;
-    position* positions_d;
-    position* positions_h;
+    bullet* bullets_d;
+    draw_info* draw_infos_d;
+    draw_info* draw_infos_h;
     
     
      
-    const int bullets_count = 100000;
-    const int bullets_size = bullets_count*sizeof(basic_bullet);
-    const int positions_size = bullets_count*sizeof(position);
+    const int bullets_count = 10000;
+    const int bullets_size = bullets_count*sizeof(bullet);
+    const int draw_infos_size = bullets_count*sizeof(draw_info);
     
     dim3 dimBlock( block_width, block_height );
     dim3 dimGrid( 1, 1 );
@@ -106,13 +135,13 @@ int main()
 // printf("%s", a);
 // 
     cudaMalloc( (void**)&bullets_d, bullets_size );
-    cudaMalloc( (void**)&positions_d, positions_size);
-    cudaMallocHost( (void**)&positions_h, positions_size);
-    positions_h = (position*) malloc(positions_size);
+    cudaMalloc( (void**)&draw_infos_d, draw_infos_size);
+    cudaMallocHost( (void**)&draw_infos_h, draw_infos_size);
+    draw_infos_h = (draw_info*) malloc(draw_infos_size);
     
     
                                    
-    int bullet_index = 90000;
+    int bullet_index = 9000;
     
     cudaStream_t stream1, stream2, stream3, stream4;
     cudaStreamCreate(&stream1);
@@ -120,7 +149,7 @@ int main()
     cudaStreamCreate(&stream3);
     cudaStreamCreate(&stream4);
     
-    initialize_bullets<<<dimGrid, dimBlock, 0, stream4>>>(
+    initialize_all_bullet<<<dimGrid, dimBlock, 0, stream4>>>(
                                    bullets_d,
                                    bullets_count,
                                    block_size);
@@ -131,32 +160,41 @@ int main()
         
         
         
-        transfer_bullets_position<<<dimGrid, dimBlock, 0, stream2>>>(
+        extract_all_bullet_draw_info<<<dimGrid, dimBlock, 0, stream2>>>(
                                        bullets_d,
-                                       positions_d,
+                                       draw_infos_d,
                                        bullets_count,
                                        block_size);
             
-                                   
-        //cudaDeviceSynchronize();
+                       
+        cudaDeviceSynchronize();
         
-        move_bullets<<<dimGrid, dimBlock, 0, stream1>>>(
+        update_all_bullet<<<dimGrid, dimBlock, 0, stream1>>>(
                                        bullets_d,
                                        bullets_count,
                                        block_size);
-        for(bullet_index = 0; bullet_index < bullets_count; ++bullet_index){
-            if(bullet_index==90000){
-                printf("Bullet #%d x: %f y: %f \n", 
-                bullet_index, 
-                positions_h[bullet_index].x,
-                positions_h[bullet_index].y);
-            }
-           
-        }
-        cudaMemcpyAsync( positions_h, positions_d, 
-                     positions_size, cudaMemcpyDeviceToHost, stream3 );
+        
+        if (cudaSuccess != cudaMemcpyAsync( draw_infos_h, draw_infos_d, 
+                     draw_infos_size, cudaMemcpyDeviceToHost, stream3 )){
+                     printf("failure \n");
+                     }
                      
-        //cudaStreamSynchronize(stream3);
+        cudaDeviceSynchronize();
+        
+        for(bullet_index = 0; bullet_index < bullets_count; ++bullet_index){
+            if(bullet_index == 900){
+                printf("Bullet #%d x: %f y: %f t: %f \n", 
+                bullet_index, 
+                draw_infos_h[bullet_index].pos.x,
+                draw_infos_h[bullet_index].pos.y,
+                draw_infos_h[bullet_index].theta);
+                if(draw_infos_h[bullet_index].pos.x==0){
+                    printf("failure2\n");
+                }
+            }
+            
+           
+        }    
         
         
            
@@ -216,8 +254,8 @@ Bullet #900 x: 900.042000 y: 899.998000
     
                      
     cudaFree(bullets_d);
-    cudaFree(positions_d);
-    cudaFreeHost(positions_h);
+    cudaFree(draw_infos_d);
+    cudaFreeHost(draw_infos_h);
     
 // cudaMalloc( (void**)&bd, isize ); 
 // cudaMemcpyAsync( ad, a, csize, cudaMemcpyHostToDevice ); 

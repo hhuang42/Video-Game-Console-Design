@@ -9,19 +9,27 @@
 const int block_size = 64; 
 const int block_width = 64;
 const int block_height = 1;
+
+typedef enum {FORM, ACTIVE, FADE, DEAD} status;
+typedef 
+
  
+typedef struct point_t{
+    double x;
+    double y;
+} point;
  
 typedef struct bullet_t{
-    double x;
-    double y;
-    double x_v;
-    double y_v;
+    point position;
+    point velocity;
+    point acceleration;
+    size_t bullet_type;
+    int age;
+    double w;
+    
+    
+    
 } basic_bullet;
-
-typedef struct position_t{
-    double x;
-    double y;
-} position;
  
 __device__ void initialize_bullet(basic_bullet* bullet,
     double x, double y, double x_v, double y_v){
@@ -128,23 +136,29 @@ int main()
                                        positions_d,
                                        bullets_count,
                                        block_size);
-                                       
-        cudaDeviceSynchronize();
+            
+                                   
+        //cudaDeviceSynchronize();
         
         move_bullets<<<dimGrid, dimBlock, 0, stream1>>>(
                                        bullets_d,
                                        bullets_count,
                                        block_size);
-        
+        for(bullet_index = 0; bullet_index < bullets_count; ++bullet_index){
+            if(bullet_index==90000){
+                printf("Bullet #%d x: %f y: %f \n", 
+                bullet_index, 
+                positions_h[bullet_index].x,
+                positions_h[bullet_index].y);
+            }
+           
+        }
         cudaMemcpyAsync( positions_h, positions_d, 
                      positions_size, cudaMemcpyDeviceToHost, stream3 );
                      
-        cudaStreamSynchronize(stream3);
-                     
-        printf("Bullet #%d x: %f y: %f \n", 
-           bullet_index, 
-           positions_h[bullet_index].x,
-           positions_h[bullet_index].y);
+        //cudaStreamSynchronize(stream3);
+        
+        
            
         
     }
